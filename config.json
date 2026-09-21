@@ -1,4 +1,5 @@
 {
-    "chain_id": 1337,
+    "chain_id": 3151909,
+    "genesis_hash": "0xd15407991193e6c23b733dc6bf9c628deaff8f9b6e252aa0d60030952b3e3ea4",
     "tx_required_confirmations": 2
 }

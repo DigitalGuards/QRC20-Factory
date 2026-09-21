@@ -31,14 +31,18 @@ requireQAddress(acc.address, "deployer address")
 web3.qrl.wallet?.add(hexseed)
 
 const deployMyTokenContract = async () => {
-    const chainId = await assertExpectedChain(web3, expectedChainId)
+    const chainId = await assertExpectedChain(web3, expectedChainId, config.genesis_hash)
     console.log(`Connected to chain ${chainId}`)
     console.log('Attempting to deploy CustomERC20Factory contract from account:', acc.address)
 
     const output = contractCompiler.GetCompilerOutput()
 
     const contractABI = output.contracts['CustomERC20Factory.hyp']['CustomERC20Factory'].abi
-    const contractByteCode = output.contracts['CustomERC20Factory.hyp']['CustomERC20Factory'].zvm.bytecode.object
+    const contractByteCode = contractCompiler.getContractBytecode(
+        output,
+        'CustomERC20Factory.hyp',
+        'CustomERC20Factory'
+    )
     const contract = new web3.qrl.Contract(contractABI)
 
     const deployOptions = { data: contractByteCode, arguments: [] }
@@ -46,8 +50,9 @@ const deployMyTokenContract = async () => {
     const estimatedGas = await contractDeploy.estimateGas({ from: acc.address })
     const gas = (estimatedGas * 12n) / 10n
     const gasPrice = await web3.qrl.getGasPrice()
-    const txObj = { gas, gasPrice, from: acc.address, data: contractDeploy.encodeABI() }
+    const txObj = { gas, gasPrice, chainId, from: acc.address, data: contractDeploy.encodeABI() }
 
+    await assertExpectedChain(web3, expectedChainId, config.genesis_hash)
     const receipt = await web3.qrl.sendTransaction(
         txObj,
         undefined,

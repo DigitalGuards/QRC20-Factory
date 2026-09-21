@@ -4,6 +4,7 @@ const { Web3 } = require('@theqrl/web3')
 const fs = require('fs');
 const { getHexSeedFromMnemonic } = require("./utils/getHexSeedFromMnemonic");
 const {
+    Q_ZERO_ADDRESS,
     assertContractCode,
     assertExpectedChain,
     requireConfirmationCount,
@@ -62,12 +63,12 @@ const tokenSymbol = "QT"
 const initialSupply = "1000000000000000000000000000"
 const decimals = 18
 const maxSupply = "1000000000000000000000000000"
-const recipient = "Q0000000000000000000000000000000000000000"
+const recipient = Q_ZERO_ADDRESS
 const maxWalletAmount = "100000000000000000000000"
 const maxTxLimit = "100000000000000000000000"
 
 const createCustomQRC20Token = async () => {
-    const chainId = await assertExpectedChain(web3, expectedChainId)
+    const chainId = await assertExpectedChain(web3, expectedChainId, config.genesis_hash)
     await assertContractCode(web3, contractAddress, "CustomERC20Factory")
     console.log(`Connected to chain ${chainId}`)
     console.log('Attempting to call the contract createToken method from account:', acc.address)
@@ -82,8 +83,9 @@ const createCustomQRC20Token = async () => {
     const estimatedGas = await createTokenMethod.estimateGas({ from: acc.address })
     const gas = (estimatedGas * 12n) / 10n
     const gasPrice = await web3.qrl.getGasPrice()
-    const txObj = { gas, gasPrice, from: acc.address, data: createTokenMethod.encodeABI(), to: contractAddress }
+    const txObj = { gas, gasPrice, chainId, from: acc.address, data: createTokenMethod.encodeABI(), to: contractAddress }
 
+    await assertExpectedChain(web3, expectedChainId, config.genesis_hash)
     const receipt = await web3.qrl.sendTransaction(
         txObj,
         undefined,

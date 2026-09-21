@@ -1,7 +1,11 @@
 const contractCompiler = require("./contract-compiler")
+const config = require("./config.json")
 const { Web3 } = require('@theqrl/web3')
 const {
+    Q_ZERO_ADDRESS,
     assertContractCode,
+    assertExpectedChain,
+    requireExpectedChainId,
     requireQAddress,
     requireRpcUrl,
 } = require("./utils/deploymentSafety");
@@ -16,11 +20,12 @@ const customQRC20Address = requireQAddress(
 );
 
 const accAddress = requireQAddress(
-    process.env.HOLDER_ADDRESS || "Q0000000000000000000000000000000000000000",
+    process.env.HOLDER_ADDRESS || Q_ZERO_ADDRESS,
     "holder address"
 )
 
 const checkTokenInfo = async () => {
+    await assertExpectedChain(web3, requireExpectedChainId(config.chain_id), config.genesis_hash)
     await assertContractCode(web3, customQRC20Address, "CustomERC20")
     console.log('Attempting to check Token info for account:', accAddress)
 

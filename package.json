@@ -1,21 +1,27 @@
 {
   "name": "qrc20-factory",
   "version": "0.2.0",
-  "description": "Custom QRC20 token factory for the QRL v2 (post-quantum) chain",
+  "description": "Custom QRC20 token factory for QIP-55 Testnet v3 (private)",
   "main": "1-deploy.js",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
+    "build": "npm run compile",
+    "compile": "node contract-compiler.js",
     "deploy": "node 1-deploy.js",
     "create-token": "node 2-onchain-call.js",
     "token-info": "node 3-offchain-call.js",
     "getcode": "node getcode.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:toolchain": "node --test test/compilerToolchain.test.js",
+    "test:qip55": "node --test test/qip55Composition.test.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@theqrl/hypc": "^0.0.2",
-    "@theqrl/wallet.js": "^3.0.1",
-    "@theqrl/web3": "^0.4.0",
+    "@theqrl/wallet.js": "^6.2.4",
+    "@theqrl/web3": "1.0.3",
     "dotenv": "^16.4.7"
   },
   "overrides": {
