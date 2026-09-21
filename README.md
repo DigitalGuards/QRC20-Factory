@@ -27,6 +27,8 @@ Tests cover compiler substitution rejection, QIP-55 wallet/account/ABI compositi
 
 Copy `.env.example` to a private `.env` and supply `RPC_URL`, the funded deployer's 34-word `MNEMONIC`, and any existing contract addresses. Never commit credentials or deployment inventories.
 
+Factory deployment requires an operator-authorized RPC endpoint that accepts a signed JSON-RPC request larger than 50 KiB. The qualified factory creation transaction is approximately 51.8 kB, including its ML-DSA signature and public key; the public wallet proxy has a 50 KiB request limit. Normal `createToken` calls fit that limit (approximately 16.3 kB for the tested parameters). Keep the public proxy's limit in place and select an appropriately bounded deployment endpoint for the one-time factory deployment. Reconcile any ambiguous submission before retrying.
+
 `config.json` pins chain ID `3151909`, genesis hash `0xd15407991193e6c23b733dc6bf9c628deaff8f9b6e252aa0d60030952b3e3ea4`, and two confirmations. Write scripts verify chain and genesis before signing, include the expected chain ID in the transaction, and validate the confirmed receipt. Contract and account addresses must use `Q` followed by 128 hexadecimal characters, with a valid checksum when mixed case is used.
 
 After deployment approval, run:
