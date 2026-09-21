@@ -1,4 +1,8 @@
-const Q_ADDRESS_PATTERN = /^Q[0-9a-fA-F]{40}$/;
+const { Web3 } = require("@theqrl/web3");
+
+const Q_ADDRESS_HEX_LENGTH = 128;
+const Q_ADDRESS_PATTERN = /^Q[0-9a-fA-F]{128}$/;
+const Q_ZERO_ADDRESS = `Q${"0".repeat(Q_ADDRESS_HEX_LENGTH)}`;
 
 function requireRpcUrl(value) {
   if (typeof value !== "string" || value.trim() === "") {
@@ -50,21 +54,32 @@ function requireConfirmationCount(value) {
 
 function requireQAddress(value, label = "address") {
   if (typeof value !== "string" || !Q_ADDRESS_PATTERN.test(value)) {
-    throw new Error(`${label} must use the current Q + 40-hex address format`);
+    throw new Error(`${label} must use the QIP-55 Q + 128-hex address format`);
+  }
+  const body = value.slice(1);
+  if (body !== body.toLowerCase() && body !== body.toUpperCase() && Web3.utils.toChecksumAddress(value) !== value) {
+    throw new Error(`${label} has an invalid QIP-55 checksum`);
   }
   return value;
 }
 
 function hasDeployedCode(code) {
-  return typeof code === "string" && !/^0x0*$/i.test(code);
+  return typeof code === "string" && /^0x(?:[0-9a-fA-F]{2})+$/.test(code) && !/^0x0*$/i.test(code);
 }
 
-async function assertExpectedChain(web3, expectedChainId) {
+async function assertExpectedChain(web3, expectedChainId, expectedGenesisHash) {
+  if (typeof expectedGenesisHash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(expectedGenesisHash)) {
+    throw new Error("config.genesis_hash must be an explicit 32-byte hash");
+  }
   const actualChainId = BigInt(await web3.qrl.getChainId());
   if (actualChainId !== expectedChainId) {
     throw new Error(
       `Wrong network: expected chain ${expectedChainId}, received ${actualChainId}`
     );
+  }
+  const genesis = await web3.qrl.getBlock("0x0", false);
+  if (typeof genesis?.hash !== "string" || genesis.hash.toLowerCase() !== expectedGenesisHash.toLowerCase()) {
+    throw new Error("Wrong network: genesis hash mismatch");
   }
   return actualChainId;
 }
@@ -121,12 +136,7 @@ async function waitForTransactionConfirmations(
       ) {
         throw new Error("Transaction block changed before reaching finality");
       }
-      if (
-        canonicalReceipt.status === false ||
-        canonicalReceipt.status === 0 ||
-        canonicalReceipt.status === 0n ||
-        canonicalReceipt.status === "0x0"
-      ) {
+      if (![true, 1, 1n, "0x1"].includes(canonicalReceipt.status)) {
         throw new Error("Transaction reverted before reaching finality");
       }
       return canonicalReceipt;
@@ -143,6 +153,8 @@ async function waitForTransactionConfirmations(
 }
 
 module.exports = {
+  Q_ADDRESS_HEX_LENGTH,
+  Q_ZERO_ADDRESS,
   assertContractCode,
   assertExpectedChain,
   hasDeployedCode,

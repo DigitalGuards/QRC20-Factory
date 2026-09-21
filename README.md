@@ -1,86 +1,50 @@
-# Custom QRC20 Factory Project
+# Custom QRC20 Factory
 
-## Overview
+Hyperion contracts and deployment tooling for custom QRC20 tokens on MyQRLWallet Testnet v3 (private). Tokens support configurable supply, wallet and transaction limits. This network uses native 64-byte QIP-55 addresses.
 
-This project demonstrates the deployment and interaction with a custom QRC20 token factory on the QRL v2 (post-quantum) blockchain. The factory allows for the creation of QRC20 tokens with customizable parameters (name, symbol, supply, decimals, max supply, max wallet amount, max tx limit, owner).
+## Requirements
 
-## Prerequisites
+- Node.js 22 and npm.
+- The exact qualified Hyperion compiler in `config/hyperion-toolchain.json`.
+- QIP-55 Web3 `1.0.3`, installed by `npm ci`.
+- An explicitly configured RPC endpoint and a funded ML-DSA-87 test wallet.
 
-- Node.js 22 (managed via [nvm](https://github.com/nvm-sh/nvm))
-- npm
-- Access to a QRL v2 JSON-RPC node (the node exposes the `qrl_*` RPC namespace)
-- A funded QRL Dilithium (MLDSA87) wallet with a 34-word mnemonic
+## Compiler qualification
 
-## Setup
+The default compiler is `../hyperion/build/hypc/hypc`. `HYPERION_COMPILER` or `HYPC_BIN` may select the same qualified binary at another location. Compilation verifies both its version and SHA-256 before accepting output.
 
-### Step 1: Obtain access to a QRL v2 node
-
-Either run your own QRL v2 node or use a public testnet RPC endpoint. See [https://test-zond.theqrl.org/install](https://test-zond.theqrl.org/install) for current node install instructions.
-
-### Step 2: Create a QRL Dilithium wallet & obtain testnet QRL
-
-Use the [wallet creation instructions](https://test-zond.theqrl.org/creating-wallet) to create a wallet and note the Q-prefixed Dilithium public address. Obtain testnet QRL via the [QRL Discord](https://www.theqrl.org/discord).
-
-### Step 3: Configure environment variables
-
-Create a `.env` file in the root directory. Use `.env.example` as a template:
-
-```
-RPC_URL=http://127.0.0.1:8545
-MNEMONIC=your_mnemonic_here
-CUSTOM_ERC20_FACTORY_ADDRESS=your_factory_contract_address_here
-CUSTOM_ERC20_ADDRESS=your_token_contract_address_here
-```
-
-> Env variable names are kept as `CUSTOM_ERC20_*` for backwards compatibility with downstream tooling; the deployed contracts are QRC20 tokens on QRL v2.
-
-### Step 4: Confirm `config.json`
-
-```json
-{
-    "chain_id": 1337,
-    "tx_required_confirmations": 2
-}
-```
-
-### Step 5: Install dependencies
+The pinned compiler is built from `DigitalGuards/hyperion` commit `302c8805f122aac69664184f9a3c592436768d6c`. The platform-specific version and binary hash are recorded in the toolchain configuration. The deployment path consumes the compiler's 64-byte QRVM output.
 
 ```bash
-nvm use 22
-npm install
+npm ci
+npm test
+npm run build
 ```
 
-### Step 6: Deploy the factory contract
+Tests cover compiler substitution rejection, QIP-55 wallet/account/ABI composition, distinct addresses sharing their low 32 bytes, network identity, and receipt checks. Address-keyed token mappings use explicit typed accessors.
+
+## Deployment configuration
+
+Copy `.env.example` to a private `.env` and supply `RPC_URL`, the funded deployer's 34-word `MNEMONIC`, and any existing contract addresses. Never commit credentials or deployment inventories.
+
+Factory deployment requires an operator-authorized RPC endpoint that accepts a signed JSON-RPC request larger than 50 KiB. The qualified factory creation transaction is approximately 51.8 kB, including its ML-DSA signature and public key; the public wallet proxy has a 50 KiB request limit. Normal `createToken` calls fit that limit (approximately 16.3 kB for the tested parameters). Keep the public proxy's limit in place and select an appropriately bounded deployment endpoint for the one-time factory deployment. Reconcile any ambiguous submission before retrying.
+
+`config.json` pins chain ID `3151909`, genesis hash `0xd15407991193e6c23b733dc6bf9c628deaff8f9b6e252aa0d60030952b3e3ea4`, and two confirmations. Write scripts verify chain and genesis before signing, include the expected chain ID in the transaction, and validate the confirmed receipt. Contract and account addresses must use `Q` followed by 128 hexadecimal characters, with a valid checksum when mixed case is used.
+
+After deployment approval, run:
 
 ```bash
-node 1-deploy.js
+npm run deploy
+# Set CUSTOM_ERC20_FACTORY_ADDRESS from the confirmed deployment.
+npm run create-token
+# Set CUSTOM_ERC20_ADDRESS from the confirmed TokenCreated event.
+npm run token-info
 ```
 
-After deployment, update `CUSTOM_ERC20_FACTORY_ADDRESS` in your `.env` with the Q-prefixed contract address printed on receipt.
+Review the example token parameters in `2-onchain-call.js` before creating a token. A zero recipient requests the factory caller as initial recipient. `HOLDER_ADDRESS` selects the account queried by `token-info`.
 
-### Step 7: Create a QRC20 token via the factory
-
-```bash
-node 2-onchain-call.js
-```
-
-This calls `createToken(...)` on the factory with the default parameters defined at the top of `2-onchain-call.js` (edit them as needed). The new token address is logged in the receipt.
-
-### Step 8: Read token info off-chain
-
-```bash
-node 3-offchain-call.js
-```
-
-Reads `name`, `symbol`, `decimals`, `totalSupply`, and the balance for `HOLDER_ADDRESS` on the token at `CUSTOM_ERC20_ADDRESS`.
-
-## v2 compatibility notes
-
-- Uses `@theqrl/web3 ^0.4.0` with the `qrl` namespace (`web3.qrl.*`). Legacy `web3.zond.*` calls will fail against a v2 node.
-- Seed derivation uses `@theqrl/wallet.js ^3.0.1` (`MLDSA87.newWalletFromMnemonic(...).getHexExtendedSeed()`).
-- Write scripts require chain ID `1337` and abort before signing on a network mismatch.
-- Contract and account addresses use the current **Q + 40-hex** format.
+Existing v2 deployment addresses are historical records. New v3 deployments require new addresses and separate consumer configuration. Passing local compilation and tests does not establish that a factory is deployed or enabled in the web wallet.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+See [LICENSE](LICENSE).

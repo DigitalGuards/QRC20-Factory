@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma hyperion ^0.0.2;
+pragma hyperion >=0.0;
 
 import "./ERC20.hyp";
 import "./Ownable.hyp";
