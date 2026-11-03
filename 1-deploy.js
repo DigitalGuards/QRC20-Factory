@@ -49,8 +49,11 @@ const deployMyTokenContract = async () => {
     const contractDeploy = contract.deploy(deployOptions)
     const estimatedGas = await contractDeploy.estimateGas({ from: acc.address })
     const gas = (estimatedGas * 12n) / 10n
-    const gasPrice = await web3.qrl.getGasPrice()
-    const txObj = { gas, gasPrice, chainId, from: acc.address, data: contractDeploy.encodeABI() }
+    // Type 2 with no fee fields: web3 fills maxFeePerGas and maxPriorityFeePerGas
+    // from the latest block (2.5 Shor tip, cap 2 * baseFee + tip), the pair this
+    // script has always signed. @theqrl/web3 1.0.3 dropped the legacy gasPrice the
+    // script used to pass, and 2.0.0 refuses it.
+    const txObj = { type: '0x2', gas, chainId, from: acc.address, data: contractDeploy.encodeABI() }
 
     await assertExpectedChain(web3, expectedChainId, config.genesis_hash)
     const receipt = await web3.qrl.sendTransaction(
