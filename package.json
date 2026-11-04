@@ -21,7 +21,7 @@
   "license": "ISC",
   "dependencies": {
     "@theqrl/wallet.js": "^6.2.4",
-    "@theqrl/web3": "1.0.3",
+    "@theqrl/web3": "2.0.0",
     "dotenv": "^16.4.7"
   },
   "overrides": {
