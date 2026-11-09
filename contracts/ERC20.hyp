@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma hyperion ^0.0.2;
+pragma hyperion >=0.0;
 
 import "./IERC20.hyp";
 import "./IERC20Metadata.hyp";

@@ -3,14 +3,29 @@ const contractCompiler = require("./contract-compiler")
 const { Web3 } = require('@theqrl/web3')
 const fs = require('fs');
 const { getHexSeedFromMnemonic } = require("./utils/getHexSeedFromMnemonic");
+const {
+    Q_ZERO_ADDRESS,
+    assertContractCode,
+    assertExpectedChain,
+    requireConfirmationCount,
+    requireExpectedChainId,
+    requireQAddress,
+    requireRpcUrl,
+    waitForTransactionConfirmations,
+} = require("./utils/deploymentSafety");
 require('dotenv').config()
 
-const provider = process.env.RPC_URL;
+const provider = requireRpcUrl(process.env.RPC_URL);
+const expectedChainId = requireExpectedChainId(config.chain_id)
+const requiredConfirmations = requireConfirmationCount(config.tx_required_confirmations)
 const web3 = new Web3(new Web3.providers.HttpProvider(provider))
 
 const mnemonic = process.env.MNEMONIC
 const hexseed = getHexSeedFromMnemonic(mnemonic)
-const contractAddress = process.env.CUSTOM_ERC20_FACTORY_ADDRESS
+const contractAddress = requireQAddress(
+    process.env.CUSTOM_ERC20_FACTORY_ADDRESS,
+    "factory address"
+)
 
 if (!hexseed) {
     console.log("You need to enter a dilithium hexseed for this to work.")
@@ -18,8 +33,8 @@ if (!hexseed) {
 }
 
 const acc = web3.qrl.accounts.seedToAccount(hexseed)
+requireQAddress(acc.address, "deployer address")
 web3.qrl.wallet?.add(hexseed)
-web3.qrl.transactionConfirmationBlocks = config.tx_required_confirmations
 
 const handleConfirmation = (data) => {
     fs.writeFileSync(
@@ -48,11 +63,14 @@ const tokenSymbol = "QT"
 const initialSupply = "1000000000000000000000000000"
 const decimals = 18
 const maxSupply = "1000000000000000000000000000"
-const recipient = "Q0000000000000000000000000000000000000000"
+const recipient = Q_ZERO_ADDRESS
 const maxWalletAmount = "100000000000000000000000"
 const maxTxLimit = "100000000000000000000000"
 
 const createCustomQRC20Token = async () => {
+    const chainId = await assertExpectedChain(web3, expectedChainId, config.genesis_hash)
+    await assertContractCode(web3, contractAddress, "CustomERC20Factory")
+    console.log(`Connected to chain ${chainId}`)
     console.log('Attempting to call the contract createToken method from account:', acc.address)
 
     let output = contractCompiler.GetCompilerOutput()
@@ -64,13 +82,31 @@ const createCustomQRC20Token = async () => {
     const createTokenMethod = contract.methods.createToken(tokenName, tokenSymbol, initialSupply, decimals, maxSupply, recipient, maxWalletAmount, maxTxLimit);
     const estimatedGas = await createTokenMethod.estimateGas({ from: acc.address })
     const gas = (estimatedGas * 12n) / 10n
-    const gasPrice = await web3.qrl.getGasPrice()
-    const txObj = { gas, gasPrice, from: acc.address, data: createTokenMethod.encodeABI(), to: contractAddress }
+    // Type 2 with no fee fields: web3 fills maxFeePerGas and maxPriorityFeePerGas
+    // from the latest block (2.5 Shor tip, cap 2 * baseFee + tip), the pair this
+    // script has always signed. @theqrl/web3 1.0.3 dropped the legacy gasPrice the
+    // script used to pass, and 2.0.0 refuses it.
+    const txObj = { type: '0x2', gas, chainId, from: acc.address, data: createTokenMethod.encodeABI(), to: contractAddress }
 
-    await web3.qrl.sendTransaction(txObj, undefined, { checkRevertBeforeSending: true })
-        .on('confirmation', handleConfirmation)
-        .on('receipt', handleReceipt)
-        .on('error', console.error)
+    await assertExpectedChain(web3, expectedChainId, config.genesis_hash)
+    const receipt = await web3.qrl.sendTransaction(
+        txObj,
+        undefined,
+        { checkRevertBeforeSending: true }
+    )
+    handleReceipt(receipt)
+    const confirmedReceipt = await waitForTransactionConfirmations(
+        web3,
+        receipt,
+        requiredConfirmations
+    )
+    handleConfirmation({
+        confirmations: requiredConfirmations,
+        receipt: confirmedReceipt,
+    })
 }
 
-createCustomQRC20Token()
+createCustomQRC20Token().catch((error) => {
+    console.error("Token creation failed:", error.message)
+    process.exitCode = 1
+})

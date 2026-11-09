@@ -1,6 +1,5 @@
 {
-    "provider":"http://127.0.0.1:8545",
-    "hexseed":"hexseed_here",
-    "contract_address":"contract_address_here",
+    "chain_id": 3151909,
+    "genesis_hash": "0xd15407991193e6c23b733dc6bf9c628deaff8f9b6e252aa0d60030952b3e3ea4",
     "tx_required_confirmations": 2
 }
